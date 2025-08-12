@@ -9,7 +9,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #000; /* Чёрный фон */
+            background-color: #000;
             touch-action: none;
             font-family: Arial, sans-serif;
         }
@@ -27,14 +27,15 @@
             height: 70vmin;
             border: 3px solid #64c864;
             box-sizing: border-box;
+            transition: border-color 0.3s;
         }
         #circle {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 40vmin; /* Увеличил в 5 раз (было 8vmin) */
-            height: 40vmin;
+            width: 30vmin; /* Чуть меньше (было 40vmin) */
+            height: 30vmin;
             background-color: #c86464;
             border-radius: 50%;
             touch-action: none;
@@ -44,16 +45,17 @@
             top: 10px;
             left: 10px;
             font-size: 24px;
-            color: #fff; /* Белый текст для контраста */
-        }
-        #free-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 48px;
             color: #fff;
-            display: none;
+        }
+        #flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0);
+            pointer-events: none;
+            transition: background-color 0.5s;
         }
     </style>
 </head>
@@ -62,7 +64,7 @@
         <div id="square"></div>
         <div id="circle"></div>
         <div id="counter">Hits: 0/5</div>
-        <div id="free-text">FREE!</div>
+        <div id="flash"></div>
     </div>
 
     <script>
@@ -70,33 +72,40 @@
         const square = document.getElementById('square');
         const circle = document.getElementById('circle');
         const counter = document.getElementById('counter');
-        const freeText = document.getElementById('free-text');
+        const flash = document.getElementById('flash');
 
         // Настройки
-        let hitsNeeded = Math.floor(Math.random() * 10) + 5; // Случайное число 5-15
+        let hitsNeeded = Math.floor(Math.random() * 10) + 5;
         let hitsCount = 0;
         let isFree = false;
-        let isTouchingWall = false; // Флаг для отслеживания "залипания" у стены
+        let isTouchingWall = false;
+        const sensitivity = 1.5; // Увеличенная чувствительность движения
 
         // Обновляем счётчик
         function updateCounter() {
             counter.textContent = `Hits: ${hitsCount}/${hitsNeeded}`;
         }
 
-        // Проверка столкновений (исправленная)
+        // Анимация вспышки
+        function triggerFlash() {
+            flash.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+            setTimeout(() => {
+                flash.style.backgroundColor = 'rgba(255, 255, 255, 0)';
+            }, 300);
+        }
+
+        // Проверка столкновений
         function checkCollision(x, y) {
             const circleRect = circle.getBoundingClientRect();
             const squareRect = square.getBoundingClientRect();
             const circleRadius = circle.offsetWidth / 2;
 
-            // Проверяем, находится ли круг у границы
             const isAtWall = 
                 x <= squareRect.left + circleRadius + 2 ||
                 x >= squareRect.right - circleRadius - 2 ||
                 y <= squareRect.top + circleRadius + 2 ||
                 y >= squareRect.bottom - circleRadius - 2;
 
-            // Если только что коснулись стены (но не продолжаем скользить)
             if (isAtWall && !isTouchingWall) {
                 hitsCount++;
                 updateCounter();
@@ -104,13 +113,11 @@
 
                 if (hitsCount >= hitsNeeded) {
                     isFree = true;
-                    square.style.display = 'none';
-                    freeText.style.display = 'block';
-                    setTimeout(resetGame, 2000);
+                    triggerFlash(); // Белая вспышка вместо надписи
+                    setTimeout(resetGame, 1000);
                 }
             }
-
-            isTouchingWall = isAtWall; // Обновляем флаг
+            isTouchingWall = isAtWall;
         }
 
         // Сброс игры
@@ -121,21 +128,21 @@
             isTouchingWall = false;
             square.style.display = 'block';
             square.style.borderColor = '#64c864';
-            freeText.style.display = 'none';
             updateCounter();
-
-            // Возвращаем круг в центр
             circle.style.top = '50%';
             circle.style.left = '50%';
         }
 
-        // Движение круга за пальцем (оптимизированное)
+        // Движение круга с повышенной чувствительностью
         let isDragging = false;
+        let lastX, lastY;
 
         circle.addEventListener('touchstart', (e) => {
             e.preventDefault();
             isDragging = true;
-            isTouchingWall = false; // Сброс при новом касании
+            isTouchingWall = false;
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
         });
 
         document.addEventListener('touchmove', (e) => {
@@ -143,20 +150,24 @@
             e.preventDefault();
 
             const touch = e.touches[0];
-            const x = touch.clientX;
-            const y = touch.clientY;
+            const deltaX = (touch.clientX - lastX) * sensitivity; // Умножаем на sensitivity
+            const deltaY = (touch.clientY - lastY) * sensitivity;
+            lastX = touch.clientX;
+            lastY = touch.clientY;
 
-            // Ограничение движения внутри квадрата
+            const circleRect = circle.getBoundingClientRect();
             const squareRect = square.getBoundingClientRect();
             const circleRadius = circle.offsetWidth / 2;
-            const clampedX = Math.min(squareRect.right - circleRadius, Math.max(squareRect.left + circleRadius, x));
-            const clampedY = Math.min(squareRect.bottom - circleRadius, Math.max(squareRect.top + circleRadius, y));
 
-            circle.style.left = `${clampedX}px`;
-            circle.style.top = `${clampedY}px`;
-            circle.style.transform = 'translate(-50%, -50%)';
+            const newX = circleRect.left + circleRadius + deltaX;
+            const newY = circleRect.top + circleRadius + deltaY;
 
-            checkCollision(clampedX, clampedY); // Передаём координаты для точной проверки
+            const clampedX = Math.max(squareRect.left + circleRadius, Math.min(squareRect.right - circleRadius, newX));
+            const clampedY = Math.max(squareRect.top + circleRadius, Math.min(squareRect.bottom - circleRadius, newY));
+
+            circle.style.left = `${clampedX - circleRadius}px`;
+            circle.style.top = `${clampedY - circleRadius}px`;
+            checkCollision(clampedX, clampedY);
         });
 
         document.addEventListener('touchend', () => {
