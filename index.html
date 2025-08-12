@@ -34,7 +34,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 30vmin; /* Чуть меньше (было 40vmin) */
+            width: 30vmin; /* Уменьшенный размер */
             height: 30vmin;
             background-color: #c86464;
             border-radius: 50%;
@@ -79,7 +79,6 @@
         let hitsCount = 0;
         let isFree = false;
         let isTouchingWall = false;
-        const sensitivity = 1.5; // Увеличенная чувствительность движения
 
         // Обновляем счётчик
         function updateCounter() {
@@ -113,7 +112,7 @@
 
                 if (hitsCount >= hitsNeeded) {
                     isFree = true;
-                    triggerFlash(); // Белая вспышка вместо надписи
+                    triggerFlash();
                     setTimeout(resetGame, 1000);
                 }
             }
@@ -133,16 +132,13 @@
             circle.style.left = '50%';
         }
 
-        // Движение круга с повышенной чувствительностью
+        // Движение круга (оригинальная чувствительность)
         let isDragging = false;
-        let lastX, lastY;
 
         circle.addEventListener('touchstart', (e) => {
             e.preventDefault();
             isDragging = true;
             isTouchingWall = false;
-            lastX = e.touches[0].clientX;
-            lastY = e.touches[0].clientY;
         });
 
         document.addEventListener('touchmove', (e) => {
@@ -150,23 +146,19 @@
             e.preventDefault();
 
             const touch = e.touches[0];
-            const deltaX = (touch.clientX - lastX) * sensitivity; // Умножаем на sensitivity
-            const deltaY = (touch.clientY - lastY) * sensitivity;
-            lastX = touch.clientX;
-            lastY = touch.clientY;
+            const x = touch.clientX;
+            const y = touch.clientY;
 
-            const circleRect = circle.getBoundingClientRect();
+            // Ограничение движения внутри квадрата
             const squareRect = square.getBoundingClientRect();
             const circleRadius = circle.offsetWidth / 2;
+            const clampedX = Math.min(squareRect.right - circleRadius, Math.max(squareRect.left + circleRadius, x));
+            const clampedY = Math.min(squareRect.bottom - circleRadius, Math.max(squareRect.top + circleRadius, y));
 
-            const newX = circleRect.left + circleRadius + deltaX;
-            const newY = circleRect.top + circleRadius + deltaY;
+            circle.style.left = `${clampedX}px`;
+            circle.style.top = `${clampedY}px`;
+            circle.style.transform = 'translate(-50%, -50%)';
 
-            const clampedX = Math.max(squareRect.left + circleRadius, Math.min(squareRect.right - circleRadius, newX));
-            const clampedY = Math.max(squareRect.top + circleRadius, Math.min(squareRect.bottom - circleRadius, newY));
-
-            circle.style.left = `${clampedX - circleRadius}px`;
-            circle.style.top = `${clampedY - circleRadius}px`;
             checkCollision(clampedX, clampedY);
         });
 
