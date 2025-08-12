@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Break Free!</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            touch-action: none;
+            font-family: Arial, sans-serif;
+        }
+        #game {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #square {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vmin;
+            height: 70vmin;
+            border: 3px solid #64c864;
+            box-sizing: border-box;
+        }
+        #circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8vmin;
+            height: 8vmin;
+            background-color: #c86464;
+            border-radius: 50%;
+            touch-action: none;
+        }
+        #counter {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            color: #000;
+        }
+        #free-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #000;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <div id="square"></div>
+        <div id="circle"></div>
+        <div id="counter">Hits: 0/5</div>
+        <div id="free-text">FREE!</div>
+    </div>
+
+    <script>
+        // Элементы
+        const square = document.getElementById('square');
+        const circle = document.getElementById('circle');
+        const counter = document.getElementById('counter');
+        const freeText = document.getElementById('free-text');
+
+        // Настройки
+        let hitsNeeded = Math.floor(Math.random() * 10) + 5; // Случайное число 5-15
+        let hitsCount = 0;
+        let isFree = false;
+
+        // Размеры
+        const squareRect = square.getBoundingClientRect();
+        const circleRadius = circle.offsetWidth / 2;
+
+        // Обновляем счётчик
+        function updateCounter() {
+            counter.textContent = `Hits: ${hitsCount}/${hitsNeeded}`;
+        }
+
+        // Проверка столкновений
+        function checkCollision() {
+            const circleRect = circle.getBoundingClientRect();
+            const squareRect = square.getBoundingClientRect();
+
+            // Если круг касается границ квадрата
+            if (
+                circleRect.left <= squareRect.left + 2 ||
+                circleRect.right >= squareRect.right - 2 ||
+                circleRect.top <= squareRect.top + 2 ||
+                circleRect.bottom >= squareRect.bottom - 2
+            ) {
+                hitsCount++;
+                updateCounter();
+
+                // Меняем цвет квадрата при ударах
+                const damage = hitsCount * 10;
+                square.style.borderColor = `rgb(${100 - damage}, ${200 - damage}, ${100 - damage})`;
+
+                // Проверяем победу
+                if (hitsCount >= hitsNeeded) {
+                    isFree = true;
+                    square.style.display = 'none';
+                    freeText.style.display = 'block';
+
+                    // Авто-рестарт через 2 секунды
+                    setTimeout(resetGame, 2000);
+                }
+            }
+        }
+
+        // Сброс игры
+        function resetGame() {
+            hitsNeeded = Math.floor(Math.random() * 10) + 5;
+            hitsCount = 0;
+            isFree = false;
+            square.style.display = 'block';
+            square.style.borderColor = '#64c864';
+            freeText.style.display = 'none';
+            updateCounter();
+
+            // Возвращаем круг в центр
+            circle.style.top = '50%';
+            circle.style.left = '50%';
+        }
+
+        // Движение круга за пальцем
+        let isDragging = false;
+
+        circle.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDragging = true;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging || isFree) return;
+            e.preventDefault();
+
+            const touch = e.touches[0];
+            const x = touch.clientX;
+            const y = touch.clientY;
+
+            // Ограничение движения внутри квадрата
+            const squareRect = square.getBoundingClientRect();
+            const maxX = squareRect.right - circleRadius;
+            const minX = squareRect.left + circleRadius;
+            const maxY = squareRect.bottom - circleRadius;
+            const minY = squareRect.top + circleRadius;
+
+            const clampedX = Math.min(maxX, Math.max(minX, x));
+            const clampedY = Math.min(maxY, Math.max(minY, y));
+
+            circle.style.left = `${clampedX}px`;
+            circle.style.top = `${clampedY}px`;
+            circle.style.transform = 'translate(-50%, -50%)';
+
+            checkCollision();
+        });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // Инициализация
+        updateCounter();
+    </script>
+</body>
+</html>
