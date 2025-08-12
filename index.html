@@ -5,20 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Break Free!</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #f0f0f0; touch-action: none; font-family: Arial; }
-        #game { position: relative; width: 100vw; height: 100vh; }
-        #square { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 70vmin; height: 70vmin; border: 3px solid #64c864; box-sizing: border-box; 
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000; /* Чёрный фон */
+            touch-action: none;
+            font-family: Arial, sans-serif;
         }
-        #circle { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 8vmin; height: 8vmin; background: #c86464; border-radius: 50%; touch-action: none; 
+        #game {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
         }
-        #counter { position: absolute; top: 10px; left: 10px; font-size: 24px; color: #000; }
-        #free-text { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 48px; color: #000; display: none; 
+        #square {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vmin;
+            height: 70vmin;
+            border: 3px solid #64c864;
+            box-sizing: border-box;
+        }
+        #circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40vmin; /* Увеличил в 5 раз (было 8vmin) */
+            height: 40vmin;
+            background-color: #c86464;
+            border-radius: 50%;
+            touch-action: none;
+        }
+        #counter {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            color: #fff; /* Белый текст для контраста */
+        }
+        #free-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #fff;
+            display: none;
         }
     </style>
 </head>
@@ -31,32 +66,41 @@
     </div>
 
     <script>
+        // Элементы
         const square = document.getElementById('square');
         const circle = document.getElementById('circle');
         const counter = document.getElementById('counter');
         const freeText = document.getElementById('free-text');
 
-        let hitsNeeded = Math.floor(Math.random() * 10) + 5; // 5-15
+        // Настройки
+        let hitsNeeded = Math.floor(Math.random() * 10) + 5; // Случайное число 5-15
         let hitsCount = 0;
         let isFree = false;
+        let isTouchingWall = false; // Флаг для отслеживания "залипания" у стены
 
+        // Обновляем счётчик
         function updateCounter() {
             counter.textContent = `Hits: ${hitsCount}/${hitsNeeded}`;
         }
 
-        function checkCollision() {
+        // Проверка столкновений (исправленная)
+        function checkCollision(x, y) {
             const circleRect = circle.getBoundingClientRect();
             const squareRect = square.getBoundingClientRect();
+            const circleRadius = circle.offsetWidth / 2;
 
-            if (
-                circleRect.left <= squareRect.left + 2 ||
-                circleRect.right >= squareRect.right - 2 ||
-                circleRect.top <= squareRect.top + 2 ||
-                circleRect.bottom >= squareRect.bottom - 2
-            ) {
+            // Проверяем, находится ли круг у границы
+            const isAtWall = 
+                x <= squareRect.left + circleRadius + 2 ||
+                x >= squareRect.right - circleRadius - 2 ||
+                y <= squareRect.top + circleRadius + 2 ||
+                y >= squareRect.bottom - circleRadius - 2;
+
+            // Если только что коснулись стены (но не продолжаем скользить)
+            if (isAtWall && !isTouchingWall) {
                 hitsCount++;
                 updateCounter();
-                square.style.borderColor = `rgb(${100 - hitsCount * 10}, ${200 - hitsCount * 10}, 100)`;
+                square.style.borderColor = `rgb(${Math.max(0, 100 - hitsCount * 10)}, ${Math.max(0, 200 - hitsCount * 10)}, 100)`;
 
                 if (hitsCount >= hitsNeeded) {
                     isFree = true;
@@ -65,41 +109,61 @@
                     setTimeout(resetGame, 2000);
                 }
             }
+
+            isTouchingWall = isAtWall; // Обновляем флаг
         }
 
+        // Сброс игры
         function resetGame() {
             hitsNeeded = Math.floor(Math.random() * 10) + 5;
             hitsCount = 0;
             isFree = false;
+            isTouchingWall = false;
             square.style.display = 'block';
             square.style.borderColor = '#64c864';
             freeText.style.display = 'none';
             updateCounter();
+
+            // Возвращаем круг в центр
             circle.style.top = '50%';
             circle.style.left = '50%';
         }
 
+        // Движение круга за пальцем (оптимизированное)
         let isDragging = false;
-        circle.addEventListener('touchstart', (e) => { e.preventDefault(); isDragging = true; });
+
+        circle.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isDragging = true;
+            isTouchingWall = false; // Сброс при новом касании
+        });
+
         document.addEventListener('touchmove', (e) => {
             if (!isDragging || isFree) return;
             e.preventDefault();
+
             const touch = e.touches[0];
+            const x = touch.clientX;
+            const y = touch.clientY;
+
+            // Ограничение движения внутри квадрата
             const squareRect = square.getBoundingClientRect();
             const circleRadius = circle.offsetWidth / 2;
+            const clampedX = Math.min(squareRect.right - circleRadius, Math.max(squareRect.left + circleRadius, x));
+            const clampedY = Math.min(squareRect.bottom - circleRadius, Math.max(squareRect.top + circleRadius, y));
 
-            const x = Math.min(squareRect.right - circleRadius, 
-                              Math.max(squareRect.left + circleRadius, touch.clientX));
-            const y = Math.min(squareRect.bottom - circleRadius, 
-                              Math.max(squareRect.top + circleRadius, touch.clientY));
-
-            circle.style.left = `${x}px`;
-            circle.style.top = `${y}px`;
+            circle.style.left = `${clampedX}px`;
+            circle.style.top = `${clampedY}px`;
             circle.style.transform = 'translate(-50%, -50%)';
-            checkCollision();
-        });
-        document.addEventListener('touchend', () => { isDragging = false; });
 
+            checkCollision(clampedX, clampedY); // Передаём координаты для точной проверки
+        });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+
+        // Инициализация
         updateCounter();
     </script>
 </body>
