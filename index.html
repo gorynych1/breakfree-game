@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png"> <!-- Иконка для iOS -->
+    <link rel="manifest" href="manifest.json"> <!-- Для Android -->
     <title>Break Free!</title>
     <style>
         body {
@@ -71,6 +76,21 @@
     </style>
 </head>
 <body>
+    <script>
+  // Фикс для iOS: принудительный fullscreen при запуске с домашнего экрана
+  if (window.navigator.standalone) {
+    document.documentElement.style.height = '100%';
+    document.body.style.height = '100%';
+    document.body.style.overflow = 'hidden';
+  }
+  
+  // Фикс для скрытия адресной строки на Android
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      window.scrollTo(0, 1);
+    }, 0);
+  });
+</script>
     <div id="game">
         <div id="flash"></div>
         <div id="square"></div>
@@ -233,3 +253,4 @@
     </script>
 </body>
 </html>
+
