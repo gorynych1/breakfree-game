@@ -31,16 +31,15 @@
         }
         #circle {
             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             width: 30vmin;
             height: 30vmin;
             background-color: #c86464;
             border-radius: 50%;
             touch-action: none;
-            /* Убрано transform изначальный, теперь позиционируем через top/left */
-            top: 50%;
-            left: 50%;
-            margin-top: -15vmin; /* Половина высоты */
-            margin-left: -15vmin; /* Половина ширины */
+            z-index: 2;
         }
         #counter {
             position: absolute;
@@ -48,16 +47,15 @@
             left: 10px;
             font-size: 24px;
             color: #fff;
+            z-index: 3;
         }
-        #flash {
+        .particle {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0);
-            pointer-events: none;
-            transition: background-color 0.5s;
+            width: 10px;
+            height: 10px;
+            background-color: #64c864;
+            border-radius: 2px;
+            z-index: 1;
         }
     </style>
 </head>
@@ -66,7 +64,6 @@
         <div id="square"></div>
         <div id="circle"></div>
         <div id="counter">Hits: 0/5</div>
-        <div id="flash"></div>
     </div>
 
     <script>
@@ -74,54 +71,79 @@
         const square = document.getElementById('square');
         const circle = document.getElementById('circle');
         const counter = document.getElementById('counter');
-        const flash = document.getElementById('flash');
+        const game = document.getElementById('game');
 
         // Настройки
         let hitsNeeded = Math.floor(Math.random() * 10) + 5;
         let hitsCount = 0;
         let isFree = false;
         let isTouchingWall = false;
-        const sensitivity = 1.5;
-        let startX, startY, circleX, circleY;
-
-        // Инициализация позиции круга
-        function initCirclePosition() {
-            const squareRect = square.getBoundingClientRect();
-            circleX = squareRect.left + squareRect.width/2;
-            circleY = squareRect.top + squareRect.height/2;
-            updateCirclePosition();
-        }
-
-        // Обновление позиции круга
-        function updateCirclePosition() {
-            circle.style.left = `${circleX - circle.offsetWidth/2}px`;
-            circle.style.top = `${circleY - circle.offsetHeight/2}px`;
-        }
 
         // Обновляем счётчик
         function updateCounter() {
             counter.textContent = `Hits: ${hitsCount}/${hitsNeeded}`;
         }
 
-        // Анимация вспышки
-        function triggerFlash() {
-            flash.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
-            setTimeout(() => {
-                flash.style.backgroundColor = 'rgba(255, 255, 255, 0)';
-            }, 300);
+        // Создание частиц при разрушении
+        function createParticles() {
+            const squareRect = square.getBoundingClientRect();
+            const particleCount = 30;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Начальная позиция (в пределах квадрата)
+                const x = squareRect.left + Math.random() * squareRect.width;
+                const y = squareRect.top + Math.random() * squareRect.height;
+                
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                
+                // Случайное направление и скорость
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 3;
+                const lifetime = 1000 + Math.random() * 1000;
+                
+                game.appendChild(particle);
+                
+                // Анимация полёта
+                let startTime = Date.now();
+                
+                function animateParticle() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = elapsed / lifetime;
+                    
+                    if (progress >= 1) {
+                        particle.remove();
+                        return;
+                    }
+                    
+                    const moveX = Math.cos(angle) * speed * elapsed / 20;
+                    const moveY = Math.sin(angle) * speed * elapsed / 20;
+                    const opacity = 1 - progress;
+                    
+                    particle.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                    particle.style.opacity = opacity;
+                    
+                    requestAnimationFrame(animateParticle);
+                }
+                
+                animateParticle();
+            }
         }
 
         // Проверка столкновений
-        function checkCollision() {
+        function checkCollision(x, y) {
             const circleRect = circle.getBoundingClientRect();
             const squareRect = square.getBoundingClientRect();
             const circleRadius = circle.offsetWidth / 2;
 
             const isAtWall = 
-                circleRect.left <= squareRect.left + 2 ||
-                circleRect.right >= squareRect.right - 2 ||
-                circleRect.top <= squareRect.top + 2 ||
-                circleRect.bottom >= squareRect.bottom - 2;
+                x <= squareRect.left + circleRadius + 2 ||
+                x >= squareRect.right - circleRadius - 2 ||
+                y <= squareRect.top + circleRadius + 2 ||
+                y >= squareRect.bottom - circleRadius - 2;
 
             if (isAtWall && !isTouchingWall) {
                 hitsCount++;
@@ -130,8 +152,9 @@
 
                 if (hitsCount >= hitsNeeded) {
                     isFree = true;
-                    triggerFlash();
-                    setTimeout(resetGame, 1000);
+                    createParticles();
+                    square.style.display = 'none';
+                    setTimeout(resetGame, 1500);
                 }
             }
             isTouchingWall = isAtWall;
@@ -146,47 +169,43 @@
             square.style.display = 'block';
             square.style.borderColor = '#64c864';
             updateCounter();
-            initCirclePosition();
+            circle.style.top = '50%';
+            circle.style.top = '50%';
+            circle.style.left = '50%';
         }
 
-        // Инициализация позиции
-        initCirclePosition();
+        // Движение круга
+        let isDragging = false;
 
-        // Обработчики касаний
         circle.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            isDragging = true;
             isTouchingWall = false;
-            startX = e.touches[0].clientX;
-            startY = e.touches[0].clientY;
         });
 
         document.addEventListener('touchmove', (e) => {
-            if (isFree) return;
+            if (!isDragging || isFree) return;
             e.preventDefault();
 
             const touch = e.touches[0];
-            const deltaX = (touch.clientX - startX) * sensitivity;
-            const deltaY = (touch.clientY - startY) * sensitivity;
-            
-            // Обновляем стартовую позицию для следующего движения
-            startX = touch.clientX;
-            startY = touch.clientY;
+            const x = touch.clientX;
+            const y = touch.clientY;
 
-            // Новая позиция круга
-            const newX = circleX + deltaX;
-            const newY = circleY + deltaY;
-
-            // Проверка границ
+            // Ограничение движения внутри квадрата
             const squareRect = square.getBoundingClientRect();
             const circleRadius = circle.offsetWidth / 2;
-            
-            circleX = Math.max(squareRect.left + circleRadius, 
-                             Math.min(squareRect.right - circleRadius, newX));
-            circleY = Math.max(squareRect.top + circleRadius,
-                             Math.min(squareRect.bottom - circleRadius, newY));
+            const clampedX = Math.min(squareRect.right - circleRadius, Math.max(squareRect.left + circleRadius, x));
+            const clampedY = Math.min(squareRect.bottom - circleRadius, Math.max(squareRect.top + circleRadius, y));
 
-            updateCirclePosition();
-            checkCollision();
+            circle.style.left = `${clampedX}px`;
+            circle.style.top = `${clampedY}px`;
+            circle.style.transform = 'translate(-50%, -50%)';
+
+            checkCollision(clampedX, clampedY);
+        });
+
+        document.addEventListener('touchend', () => {
+            isDragging = false;
         });
 
         // Инициализация
